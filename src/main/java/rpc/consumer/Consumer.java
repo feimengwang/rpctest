@@ -1,8 +1,12 @@
 package rpc.consumer;
 
+import rpc.core.DefaultRequest;
+import rpc.core.Request;
 import rpc.register.Register;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -31,12 +35,13 @@ public class Consumer {
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            Request request= buildRequest(method,args,clazz);
 
             return null;
         }
     }
 
-    private Object getResult(Class clazz) {
+    private Object getResult(Class clazz,Request request) {
         Map<String, Object> serviceInfo = Register.getServiceInfo(clazz.getName());
         String host = (String) serviceInfo.get("host");
         int port = (int) serviceInfo.get("port");
@@ -65,12 +70,19 @@ public class Consumer {
                             while (!socket.finishConnect()) {
                                 System.out.println("连接中");
                             }
-                            socket.register(selector, SelectionKey.OP_READ);
+
+                            socket.register(selector, SelectionKey.OP_WRITE);
                         }
                         //控制台监听到有输入，注册OP_WRITE,然后将消息附在attachment中
                         if (key.isWritable()) {
                             //发送消息给服务端
-                            socket.write((ByteBuffer) key.attachment());
+                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                            ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
+                            objectOutputStream.writeObject(request);
+                            byte[] bytes = byteArrayOutputStream.toByteArray();
+                            objectOutputStream.flush();
+                            ByteBuffer byteBuffer =ByteBuffer.wrap(bytes);
+                            socket.write(byteBuffer);
                             /*
 	                            已处理完此次输入，但OP_WRITE只要当前通道输出方向没有被占用
 	                            就会准备就绪，select()不会阻塞（但我们需要控制台触发,在没有输入时
@@ -106,5 +118,14 @@ public class Consumer {
             System.out.println("客户端异常，请重启！");
         }
         return null;
+    }
+
+    private Request buildRequest( Method method, Object[] args,Class clazz){
+        Request request = new DefaultRequest();
+        ((DefaultRequest) request).setMethodName(method.getName());
+        ((DefaultRequest) request).setInterfaceName(clazz.getName());
+        ((DefaultRequest) request).setArguments(args);
+        ((DefaultRequest) request).setParameterTypes(method.getParameterTypes());
+        return request;
     }
 }
