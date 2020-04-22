@@ -1,9 +1,15 @@
 package rpc.provider;
 
+import rpc.core.Request;
 import rpc.provider.impl.HelloServiceImpl;
 import rpc.register.Register;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -15,17 +21,12 @@ import java.util.Iterator;
 import java.util.Map;
 
 public class Provider {
+    private Map<String,Class> cache = new HashMap();
 
-    private void registerService() {
-        Map<String,Object> info =new HashMap<>();
-        info.put("host","127.0.0.1");
-        info.put("port",39390);
-        info.put("service",HelloServiceImpl.class.getName());
-        Register.addService(HelloService.class.getName(), info);
-    }
 
     public void start() {
-        registerService();
+        Register.registerService();
+        cache.put(HelloService.class.getName(),HelloServiceImpl.class);
         try {
             ServerSocketChannel serverSocket = ServerSocketChannel.open();
             serverSocket.configureBlocking(false);
@@ -47,15 +48,22 @@ public class Provider {
                     if (key.isReadable()) {
                         SocketChannel socket = (SocketChannel) key.channel();
                         ByteBuffer bf = ByteBuffer.allocate(1024 * 4);
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                         int len = 0;
                         byte[] res = new byte[1024 * 4];
                         try {
                             while ((len = socket.read(bf)) != 0) {
                                 bf.flip();
                                 bf.get(res, 0, len);
-                                System.out.println(new String(res, 0, len));
                                 bf.clear();
+                                byteArrayOutputStream.write(res, 0, len);
                             }
+                            byteArrayOutputStream.flush();
+                            byte[] bytes = byteArrayOutputStream.toByteArray();
+                            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
+                            ObjectInputStream objectOutputStream = new ObjectInputStream(byteArrayInputStream);
+                            Request request = (Request) objectOutputStream.readObject();
+                            invoke(request);
                         } catch (IOException e) {
                             key.cancel();
                             socket.close();
@@ -64,10 +72,38 @@ public class Provider {
                     }
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
             System.out.println("服务器异常，即将关闭..........");
         }
+    }
+
+    private void invoke(Request request) {
+        String interfaceName = request.getInterfaceName();
+        String methodName = request.getMethodName();
+        Class<?>[] parameterTypes = request.getParameterTypes();
+        Object[] arguments = request.getArguments();
+
+        Class clazz = cache.get(interfaceName);
+        try {
+            Object obj = clazz.newInstance();
+            Method declaredMethod = clazz.getDeclaredMethod(methodName, parameterTypes);
+            Object invoke = declaredMethod.invoke(obj, arguments);
+
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static void main(String[] args) {
+        new Provider().start();
     }
 }
 

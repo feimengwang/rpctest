@@ -1,57 +1,27 @@
 package rpc.consumer;
 
-import rpc.core.DefaultRequest;
 import rpc.core.Request;
-import rpc.provider.HelloService;
-import rpc.register.Register;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Calendar;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 
-public class Consumer {
+public class Transport {
 
-    public <T> T getService(Class<T> clazz) {
-        return (T) Proxy.newProxyInstance(Consumer.class.getClassLoader(), new Class[]{clazz}, new MyInvocationHandler(clazz));
-    }
-
-    private class MyInvocationHandler implements InvocationHandler {
-        Class clazz;
-
-        public MyInvocationHandler(Class clazz) {
-            this.clazz = clazz;
-        }
-
-        @Override
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            Request request = buildRequest(method, args, clazz);
-            return getResult(clazz, request);
-        }
-    }
-
-    private Object getResult(Class clazz, Request request) {
-        Map<String, Object> serviceInfo = Register.getServiceInfo(clazz.getName());
-        String host = (String) serviceInfo.get("host");
-        Integer port = (Integer) serviceInfo.get("port");
-        String service = (String) serviceInfo.get("service");
+    public void transport(Request request){
         try {
             SocketChannel socket = SocketChannel.open();
             socket.configureBlocking(false);
             Selector selector = Selector.open();
             socket.register(selector, SelectionKey.OP_CONNECT);
-            socket.connect(new InetSocketAddress(host, port));
+            socket.connect(new InetSocketAddress("host", 0));
             while (true) {
                 if (socket.isOpen()) {
                     //在注册的键中选择已准备就绪的事件
@@ -117,22 +87,5 @@ public class Consumer {
         } catch (IOException e) {
             System.out.println("客户端异常，请重启！");
         }
-        return null;
-    }
-
-    private Request buildRequest(Method method, Object[] args, Class clazz) {
-        Request request = new DefaultRequest();
-        ((DefaultRequest) request).setMethodName(method.getName());
-        ((DefaultRequest) request).setInterfaceName(clazz.getName());
-        ((DefaultRequest) request).setArguments(args);
-        ((DefaultRequest) request).setParameterTypes(method.getParameterTypes());
-        return request;
-    }
-
-    public static void main(String[] args) {
-        Consumer consumer = new Consumer();
-        Register.registerService();
-        HelloService service = consumer.getService(HelloService.class);
-        service.sayHello("sss");
     }
 }
