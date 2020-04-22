@@ -1,8 +1,11 @@
 package rpc.provider;
 
+import rpc.core.DefaultResponse;
 import rpc.core.Request;
+import rpc.core.Response;
 import rpc.provider.impl.HelloServiceImpl;
 import rpc.register.Register;
+import rpc.util.StreamUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -21,12 +24,12 @@ import java.util.Iterator;
 import java.util.Map;
 
 public class Provider {
-    private Map<String,Class> cache = new HashMap();
+    private Map<String, Class> cache = new HashMap();
 
 
     public void start() {
         Register.registerService();
-        cache.put(HelloService.class.getName(),HelloServiceImpl.class);
+        cache.put(HelloService.class.getName(), HelloServiceImpl.class);
         try {
             ServerSocketChannel serverSocket = ServerSocketChannel.open();
             serverSocket.configureBlocking(false);
@@ -47,38 +50,25 @@ public class Provider {
                     }
                     if (key.isReadable()) {
                         SocketChannel socket = (SocketChannel) key.channel();
-                        ByteBuffer bf = ByteBuffer.allocate(1024 * 4);
-                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                        int len = 0;
-                        byte[] res = new byte[1024 * 4];
-                        try {
-                            while ((len = socket.read(bf)) != 0) {
-                                bf.flip();
-                                bf.get(res, 0, len);
-                                bf.clear();
-                                byteArrayOutputStream.write(res, 0, len);
-                            }
-                            byteArrayOutputStream.flush();
-                            byte[] bytes = byteArrayOutputStream.toByteArray();
-                            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-                            ObjectInputStream objectOutputStream = new ObjectInputStream(byteArrayInputStream);
-                            Request request = (Request) objectOutputStream.readObject();
-                            invoke(request);
-                        } catch (IOException e) {
-                            key.cancel();
-                            socket.close();
-                            System.out.println("客戶端已断开");
+                        Request request = (Request) StreamUtil.readObject(socket);
+                        if(request !=null) {
+                            Object result = invoke(request);
+                            Response response = new DefaultResponse();
+                            ((DefaultResponse) response).setData(result);
+                            ByteBuffer byteBuffer = ByteBuffer.wrap(StreamUtil.readObject(response));
+                            socket.write(byteBuffer);
                         }
+                        socket.register(selector, SelectionKey.OP_READ);
                     }
                 }
             }
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (IOException e) {
             e.printStackTrace();
             System.out.println("服务器异常，即将关闭..........");
         }
     }
 
-    private void invoke(Request request) {
+    private Object invoke(Request request) {
         String interfaceName = request.getInterfaceName();
         String methodName = request.getMethodName();
         Class<?>[] parameterTypes = request.getParameterTypes();
@@ -88,8 +78,7 @@ public class Provider {
         try {
             Object obj = clazz.newInstance();
             Method declaredMethod = clazz.getDeclaredMethod(methodName, parameterTypes);
-            Object invoke = declaredMethod.invoke(obj, arguments);
-
+            return declaredMethod.invoke(obj, arguments);
         } catch (InstantiationException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {
@@ -99,7 +88,7 @@ public class Provider {
         } catch (InvocationTargetException e) {
             e.printStackTrace();
         }
-
+        return null;
     }
 
     public static void main(String[] args) {
