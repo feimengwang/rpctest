@@ -2,7 +2,7 @@ package rpc.consumer;
 
 import rpc.core.Request;
 import rpc.core.Response;
-import rpc.register.Register;
+import rpc.registry.Registry;
 import rpc.util.StreamUtil;
 
 import java.io.IOException;
@@ -18,7 +18,7 @@ import java.util.Set;
 public class Transport {
 
     public Response transport(Request request) {
-        Map<String, Object> serviceInfo = Register.getServiceInfo(request.getInterfaceName());
+        Map<String, Object> serviceInfo = Registry.getServiceInfo(request.getInterfaceName());
         String host = (String) serviceInfo.get("host");
         Integer port = (Integer) serviceInfo.get("port");
         String service = (String) serviceInfo.get("service");

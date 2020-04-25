@@ -1,13 +1,19 @@
 package rpc.util;
 
-import rpc.core.Request;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
+/**
+ * Stream 工具类
+ */
 public class StreamUtil {
 
+    /**
+     * Socket 读取对象
+     * @param socket
+     * @return
+     */
     public static Object readObject(SocketChannel socket) {
         try {
             if (!socket.isConnected()) {
@@ -33,6 +39,11 @@ public class StreamUtil {
         return null;
     }
 
+    /**
+     * 把对象转成字节数组，对象实现Serializable
+     * @param object
+     * @return
+     */
     public static byte[] readObject(Object object) {
         try {
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();

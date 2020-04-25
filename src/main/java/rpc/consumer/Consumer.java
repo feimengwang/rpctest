@@ -4,7 +4,7 @@ import rpc.core.DefaultRequest;
 import rpc.core.Request;
 import rpc.core.Response;
 import rpc.provider.HelloService;
-import rpc.register.Register;
+import rpc.registry.Registry;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -46,7 +46,7 @@ public class Consumer {
 
     public static void main(String[] args) {
         Consumer consumer = new Consumer();
-        Register.registerService();
+        Registry.registerService();
         HelloService service = consumer.getService(HelloService.class);
         service.sayHello("world!");
         System.out.println(service.getName());

@@ -1,4 +1,4 @@
-package rpc.register;
+package rpc.registry;
 
 import rpc.provider.HelloService;
 import rpc.provider.impl.HelloServiceImpl;
@@ -6,7 +6,8 @@ import rpc.provider.impl.HelloServiceImpl;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Register {
+public class Registry {
+
     private static Map<String, Map<String,Object>> register = new HashMap<>();
 
     public static void addService(String serviceName, Map map) {
@@ -21,6 +22,6 @@ public class Register {
         info.put("host","127.0.0.1");
         info.put("port",39390);
         info.put("service", HelloServiceImpl.class.getName());
-        Register.addService(HelloService.class.getName(), info);
+        Registry.addService(HelloService.class.getName(), info);
     }
 }

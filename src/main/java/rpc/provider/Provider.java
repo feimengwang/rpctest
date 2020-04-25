@@ -4,13 +4,10 @@ import rpc.core.DefaultResponse;
 import rpc.core.Request;
 import rpc.core.Response;
 import rpc.provider.impl.HelloServiceImpl;
-import rpc.register.Register;
+import rpc.registry.Registry;
 import rpc.util.StreamUtil;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -28,7 +25,7 @@ public class Provider {
 
 
     public void start() {
-        Register.registerService();
+        Registry.registerService();
         cache.put(HelloService.class.getName(), HelloServiceImpl.class);
         try {
             ServerSocketChannel serverSocket = ServerSocketChannel.open();
